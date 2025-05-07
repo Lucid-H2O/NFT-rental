@@ -1,7 +1,11 @@
 {
   "name": "project",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a Hardhat Ignition module that deploys that contract.",
+  "main": "hardhat.config.js",
+  "directories": {
+    "test": "test"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -9,19 +13,21 @@
     "type": "git",
     "url": "git+https://github.com/Lucid-H2O/NFT-rental.git"
   },
-  "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/Lucid-H2O/NFT-rental/issues"
   },
   "homepage": "https://github.com/Lucid-H2O/NFT-rental#readme",
-  "description": "",
-  "dependencies": {
-    "dotenv": "^16.5.0"
-  },
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "hardhat": "^2.23.0"
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.8",
+    "@nomicfoundation/hardhat-ethers": "^3.0.8",
+    "@openzeppelin/contracts": "^4.7.3",
+    "chai": "^4.5.0",
+    "ethers": "^6.13.5",
+    "hardhat": "^2.22.19"
+  },
+  "dependencies": {
+    "project": "file:"
   }
 }
