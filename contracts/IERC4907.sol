@@ -2,7 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-interface IERC4907 {
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+
+interface IERC4907 is IERC721{
     // Logged when the user of a token assigns a new user or updates expires
     /// @notice Emitted when the `user` of an NFT or the `expires` of the `user` is changed
     /// The zero address for user indicates that there is no user address
@@ -26,4 +28,7 @@ interface IERC4907 {
     /// @param tokenId The NFT to get the user expires for
     /// @return The user expires for this NFT
     function userExpires(uint256 tokenId) external view returns(uint256);
+
+    
+
 }

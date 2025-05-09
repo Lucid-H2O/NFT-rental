@@ -10,6 +10,12 @@ async function main() {
     const contractAddress1 = await NFTContract.getAddress();
     console.log("RentableNFT deployed to:", contractAddress1);
 
+    const ERC4907RentalMarketContractFactory = await hre.ethers.getContractFactory("ERC4907RentalMarket");
+    const ERC4907RentalMarketContract = await ERC4907RentalMarketContractFactory.deploy();
+    await ERC4907RentalMarketContract.waitForDeployment();
+    const contractAddress2 = await ERC4907RentalMarketContract.getAddress();
+    console.log("RentableNFT deployed to:", contractAddress2);
+
 
 }
 

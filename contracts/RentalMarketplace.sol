@@ -1,58 +1,34 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./IERC4907.sol";
 
-contract ERC4907Marketplace is ReentrancyGuard {
-    struct Listing {
-        address seller;
-        uint256 price;
+contract ERC4907RentalMarket is ReentrancyGuard {
+    struct RentalListing {
+        address lender;
         uint256 rentalPricePerDay;
         uint256 minRentalDays;
         uint256 maxRentalDays;
-        uint256 expiresAt;
-        bool isForSale;
-        bool isForRent;
+        uint256 listExpiresAt;
     }
 
-    mapping(address => mapping(uint256 => Listing)) public listings;
-    
-    event ListedForSale(
-        address indexed nftAddress,
-        uint256 indexed tokenId,
-        address indexed seller,
-        uint256 price
-    );
+    mapping(address => mapping(uint256 => RentalListing)) public rentalListings;
     
     event ListedForRent(
         address indexed nftAddress,
         uint256 indexed tokenId,
-        address indexed seller,
+        address indexed lender,
         uint256 rentalPricePerDay,
         uint256 minRentalDays,
         uint256 maxRentalDays,
-        uint256 expiresAt
-    );
-    
-    event SaleCancelled(
-        address indexed nftAddress,
-        uint256 indexed tokenId,
-        address indexed seller
+        uint256 listExpiresAt
     );
     
     event RentCancelled(
         address indexed nftAddress,
         uint256 indexed tokenId,
-        address indexed seller
-    );
-    
-    event Purchased(
-        address indexed nftAddress,
-        uint256 indexed tokenId,
-        address indexed buyer,
-        uint256 price
+        address indexed lender
     );
     
     event Rented(
@@ -61,47 +37,23 @@ contract ERC4907Marketplace is ReentrancyGuard {
         address indexed renter,
         uint256 rentalPricePerDay,
         uint256 rentalDays,
-        uint256 expiresAt
+        uint256 rentalExpiresAt
     );
 
-    modifier onlySeller(address nftAddress, uint256 tokenId) {
+    modifier onlyLender(address nftAddress, uint256 tokenId) {
         require(
-            listings[nftAddress][tokenId].seller == msg.sender,
-            "Not the seller"
+            rentalListings[nftAddress][tokenId].lender == msg.sender,
+            "Not the lender"
         );
         _;
     }
 
     modifier isListed(address nftAddress, uint256 tokenId) {
         require(
-            listings[nftAddress][tokenId].seller != address(0),
+            rentalListings[nftAddress][tokenId].lender != address(0),
             "NFT not listed"
         );
         _;
-    }
-
-    function listForSale(
-        address nftAddress,
-        uint256 tokenId,
-        uint256 price
-    ) external {
-        IERC721 nft = IERC721(nftAddress);
-        require(nft.ownerOf(tokenId) == msg.sender, "Not the owner");
-        require(nft.getApproved(tokenId) == address(this) || nft.isApprovedForAll(msg.sender, address(this)), "Not approved");
-        require(price > 0, "Price must be greater than 0");
-
-        listings[nftAddress][tokenId] = Listing({
-            seller: msg.sender,
-            price: price,
-            rentalPricePerDay: 0,
-            minRentalDays: 0,
-            maxRentalDays: 0,
-            expiresAt: 0,
-            isForSale: true,
-            isForRent: false
-        });
-
-        emit ListedForSale(nftAddress, tokenId, msg.sender, price);
     }
 
     function listForRent(
@@ -110,25 +62,24 @@ contract ERC4907Marketplace is ReentrancyGuard {
         uint256 rentalPricePerDay,
         uint256 minRentalDays,
         uint256 maxRentalDays,
-        uint256 expiresAt
+        uint256 listExpiresAt
     ) external {
-        IERC721 nft = IERC721(nftAddress);
+        IERC4907 nft = IERC4907(nftAddress);
         require(nft.ownerOf(tokenId) == msg.sender, "Not the owner");
-        require(nft.getApproved(tokenId) == address(this) || nft.isApprovedForAll(msg.sender, address(this)), "Not approved");
-        require(rentalPricePerDay > 0, "Rental price must be greater than 0");
-        require(minRentalDays > 0, "Minimum rental days must be greater than 0");
-        require(maxRentalDays >= minRentalDays, "Max rental days must be >= min rental days");
-        require(expiresAt > block.timestamp, "Expiration must be in the future");
+        require(nft.getApproved(tokenId) == address(this) || 
+               nft.isApprovedForAll(msg.sender, address(this)), "Not approved");
+        require(rentalPricePerDay > 0, "Rental price must be > 0");
+        require(minRentalDays > 0, "Min rental days must be > 0");
+        require(maxRentalDays >= minRentalDays, "Invalid rental range");
+        require(listExpiresAt > block.timestamp, "Expiration must be future");
+        require(nft.userOf(tokenId) == address(0), "NFT currently rented");
 
-        listings[nftAddress][tokenId] = Listing({
-            seller: msg.sender,
-            price: 0,
+        rentalListings[nftAddress][tokenId] = RentalListing({
+            lender: msg.sender,
             rentalPricePerDay: rentalPricePerDay,
             minRentalDays: minRentalDays,
             maxRentalDays: maxRentalDays,
-            expiresAt: expiresAt,
-            isForSale: false,
-            isForRent: true
+            listExpiresAt: listExpiresAt
         });
 
         emit ListedForRent(
@@ -138,54 +89,20 @@ contract ERC4907Marketplace is ReentrancyGuard {
             rentalPricePerDay,
             minRentalDays,
             maxRentalDays,
-            expiresAt
+            listExpiresAt
         );
     }
 
-    function cancelSale(address nftAddress, uint256 tokenId)
+    function cancelRentalListing(address nftAddress, uint256 tokenId)
         external
         isListed(nftAddress, tokenId)
-        onlySeller(nftAddress, tokenId)
+        onlyLender(nftAddress, tokenId)
     {
-        require(listings[nftAddress][tokenId].isForSale, "Not listed for sale");
+        IERC4907 nft = IERC4907(nftAddress);
+        require(nft.userOf(tokenId) == address(0), "NFT currently rented");
         
-        delete listings[nftAddress][tokenId];
-        
-        emit SaleCancelled(nftAddress, tokenId, msg.sender);
-    }
-
-    function cancelRent(address nftAddress, uint256 tokenId)
-        external
-        isListed(nftAddress, tokenId)
-        onlySeller(nftAddress, tokenId)
-    {
-        require(listings[nftAddress][tokenId].isForRent, "Not listed for rent");
-        
-        delete listings[nftAddress][tokenId];
-        
+        delete rentalListings[nftAddress][tokenId];
         emit RentCancelled(nftAddress, tokenId, msg.sender);
-    }
-
-    function purchase(address nftAddress, uint256 tokenId)
-        external
-        payable
-        nonReentrant
-        isListed(nftAddress, tokenId)
-    {
-        Listing memory listing = listings[nftAddress][tokenId];
-        require(listing.isForSale, "Not for sale");
-        require(msg.value == listing.price, "Incorrect payment amount");
-
-        IERC721 nft = IERC721(nftAddress);
-        require(nft.ownerOf(tokenId) == listing.seller, "Seller no longer owner");
-
-        delete listings[nftAddress][tokenId];
-        
-        nft.safeTransferFrom(listing.seller, msg.sender, tokenId);
-        
-        payable(listing.seller).transfer(msg.value);
-        
-        emit Purchased(nftAddress, tokenId, msg.sender, listing.price);
     }
 
     function rent(
@@ -193,9 +110,9 @@ contract ERC4907Marketplace is ReentrancyGuard {
         uint256 tokenId,
         uint256 rentalDays
     ) external payable nonReentrant isListed(nftAddress, tokenId) {
-        Listing memory listing = listings[nftAddress][tokenId];
-        require(listing.isForRent, "Not for rent");
-        require(block.timestamp < listing.expiresAt, "Listing expired");
+        RentalListing memory listing = rentalListings[nftAddress][tokenId];
+        
+        require(block.timestamp < listing.listExpiresAt, "Listing expired");
         require(rentalDays >= listing.minRentalDays, "Rental period too short");
         require(rentalDays <= listing.maxRentalDays, "Rental period too long");
         
@@ -203,16 +120,19 @@ contract ERC4907Marketplace is ReentrancyGuard {
         require(msg.value == totalRentalPrice, "Incorrect payment amount");
 
         IERC4907 nft = IERC4907(nftAddress);
-        require(nft.ownerOf(tokenId) == listing.seller, "Seller no longer owner");
-        require(nft.userOf(tokenId) == address(0), "NFT is currently rented");
+        require(nft.ownerOf(tokenId) == listing.lender, "Lender no longer owner");
+        require(nft.userOf(tokenId) == address(0), "NFT currently rented");
 
-        uint256 expiresAt = block.timestamp + (rentalDays * 1 days);
+        uint256 rentalExpiresAt = block.timestamp + (rentalDays * 1 days);
         
         // Set the user and expiry
-        nft.setUser(tokenId, msg.sender, expiresAt);
+        nft.setUser(tokenId, msg.sender, uint64(rentalExpiresAt));
         
-        // Transfer payment to seller
-        payable(listing.seller).transfer(msg.value);
+        // Transfer payment to lender
+        payable(listing.lender).transfer(msg.value);
+        
+        // Remove listing after successful rental
+        delete rentalListings[nftAddress][tokenId];
         
         emit Rented(
             nftAddress,
@@ -220,15 +140,15 @@ contract ERC4907Marketplace is ReentrancyGuard {
             msg.sender,
             listing.rentalPricePerDay,
             rentalDays,
-            expiresAt
+            rentalExpiresAt
         );
     }
 
-    function getListing(address nftAddress, uint256 tokenId)
+    function getRentalListing(address nftAddress, uint256 tokenId)
         external
         view
-        returns (Listing memory)
+        returns (RentalListing memory)
     {
-        return listings[nftAddress][tokenId];
+        return rentalListings[nftAddress][tokenId];
     }
 }
