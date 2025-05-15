@@ -1,22 +1,20 @@
-import hre from 'hardhat';
+const { ethers } = require("hardhat");
 
 async function main() {
-    const [deployer] = await hre.ethers.getSigners();
+    const [deployer] = await ethers.getSigners();
     console.log("Deploying contracts with the account:", deployer.address);
 
-    const NFTContractFactory = await hre.ethers.getContractFactory("RentableNFT");
+    // Deploy RentableNFT
+    const NFTContractFactory = await ethers.getContractFactory("RentableNFT");
     const NFTContract = await NFTContractFactory.deploy();
     await NFTContract.waitForDeployment();
-    const contractAddress1 = await NFTContract.getAddress();
-    console.log("RentableNFT deployed to:", contractAddress1);
+    console.log("RentableNFT deployed to:", await NFTContract.getAddress());
 
-    const ERC4907RentalMarketContractFactory = await hre.ethers.getContractFactory("ERC4907RentalMarket");
-    const ERC4907RentalMarketContract = await ERC4907RentalMarketContractFactory.deploy();
-    await ERC4907RentalMarketContract.waitForDeployment();
-    const contractAddress2 = await ERC4907RentalMarketContract.getAddress();
-    console.log("RentableNFT deployed to:", contractAddress2);
-
-
+    // Deploy RentalMarketplace
+    const RentalMarketContractFactory = await ethers.getContractFactory("RentalMarketplace");
+    const RentalMarketContract = await RentalMarketContractFactory.deploy();
+    await RentalMarketContract.waitForDeployment();
+    console.log("RentalMarketplace deployed to:", await RentalMarketContract.getAddress());
 }
 
 main()

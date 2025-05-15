@@ -1,13 +1,13 @@
-import hre from 'hardhat';
-import { assert, expect } from 'chai';
+const { ethers } = require("hardhat")
+const { assert, expect } = require("chai")
 
 describe("NFTContract test", function () {
     let NFTContract;
     let account0, account1;
 
     beforeEach(async function () {
-        [account0, account1] = await hre.ethers.getSigners();
-        const NFTContractFactory = await hre.ethers.getContractFactory("RentableNFT", account0);
+        [account0, account1] = await ethers.getSigners();
+        const NFTContractFactory = await ethers.getContractFactory("RentableNFT", account0);
         NFTContract = await NFTContractFactory.deploy();
         await NFTContract.waitForDeployment();
     });

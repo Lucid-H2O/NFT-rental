@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./IERC4907.sol";
 
-contract ERC4907RentalMarket is ReentrancyGuard {
+contract RentalMarketplace is ReentrancyGuard {
     struct RentalListing {
         address lender;
         uint256 rentalPricePerDay;
